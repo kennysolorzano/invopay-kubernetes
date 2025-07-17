@@ -2,8 +2,6 @@
 
 Este repositorio contiene toda la configuración de Kubernetes necesaria para desplegar la aplicación InvoPay, una plataforma completa con un frontend en Angular y un backend en Spring Boot.
 
-![Portal de Administración de InvoPay](https://i.imgur.com/g0j8q3m.jpeg)
-
 ---
 
 ## 📋 Prerrequisitos
@@ -115,7 +113,7 @@ Espera a que la columna EXTERNAL-IP muestre una dirección IP pública. Esto pue
 Abre tu navegador y ve a la http://<EXTERNAL-IP> que obtuviste.
 
 🛠️ Flujo de Trabajo para Desarrollo
-Si realizas cambios en el código fuente, sigue estos pasos para actualizar tu entorno de desarrollo en Minikube:
+Si realizas cambios en el código fuente, sigue estos pasos para actualizar tu entorno de desarrollo en Minikube.
 
 Reconstruye la imagen modificada:
 
