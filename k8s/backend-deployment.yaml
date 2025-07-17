@@ -1,0 +1,100 @@
+# backend-deployment.yaml
+# VERSIÓN FINAL: Usa una ruta de la API existente como health check.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend-container
+        image: kennysolo/invopay-backend:1.0.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DB_URL
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: DB_URL } }
+        - name: DB_USER
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: DB_USER } }
+        - name: DB_PASSWORD
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: DB_PASSWORD } }
+        - name: JWT_SECRET_KEY
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: JWT_SECRET_KEY } }
+        - name: SECURE_SECRET_KEY
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: SECURE_SECRET_KEY } }
+        - name: MAIL_HOST
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: MAIL_HOST } }
+        - name: MAIL_PORT
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: MAIL_PORT } }
+        - name: MAIL_USERNAME
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: MAIL_USERNAME } }
+        - name: MAIL_PASSWORD
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: MAIL_PASSWORD } }
+        - name: BUCKET_ID
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: BUCKET_ID } }
+        - name: PROJECT_ID
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: PROJECT_ID } }
+        - name: BUCKET_NAME
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: BUCKET_NAME } }
+        - name: ALLOWED_ORIGINS
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: ALLOWED_ORIGINS } }
+        - name: JWT_EXPIRATION
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: JWT_EXPIRATION } }
+        - name: JWT_REFRESH_TOKEN_EXPIRATION
+          valueFrom: { secretKeyRef: { name: backend-secrets, key: JWT_REFRESH_TOKEN_EXPIRATION } }
+        - name: SPRING_PROFILES_ACTIVE
+          value: "dev"
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/app/credential/techforb-finsuite-key.json"
+
+        volumeMounts:
+        - name: google-creds-volume
+          mountPath: "/app/credential"
+          readOnly: true
+        
+        # --- CAMBIO AQUÍ: Aumentamos drásticamente la paciencia ---
+        readinessProbe:
+          httpGet:
+            path: /api/v1/invopay/countries # Ruta pública existente
+            port: 8080
+          initialDelaySeconds: 90  # Espera 90 segundos antes de la primera revisión
+          periodSeconds: 30      # Revisa cada 30 segundos
+          failureThreshold: 5    # Permite 5 fallos antes de rendirse
+        livenessProbe:
+          httpGet:
+            path: /api/v1/invopay/countries # Ruta pública existente
+            port: 8080
+          initialDelaySeconds: 120 # Espera 2 minutos antes de la primera revisión
+          periodSeconds: 30      # Revisa cada 30 segundos
+          failureThreshold: 5    # Permite 5 fallos antes de reiniciarlo
+
+      volumes:
+      - name: google-creds-volume
+        secret:
+          secretName: google-credentials
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+

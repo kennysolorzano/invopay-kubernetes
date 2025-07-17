@@ -1,0 +1,18 @@
+# Ignorar dependencias locales y logs
+node_modules
+npm-debug.log
+
+# Ignorar carpetas de build (se generan dentro del contenedor)
+build
+dist
+
+# Ignorar archivos de Git
+.git
+.gitignore
+
+# Ignorar variables de entorno locales
+.env
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db

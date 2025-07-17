@@ -1,0 +1,36 @@
+version: '3.8'
+services:
+  frontend:
+    build: ./techforb-invopay-front
+    ports:
+      - "8081:80"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  backend:
+    build: 
+      context: ./techforb-invopay-backend
+    env_file:
+      - .env
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      GOOGLE_APPLICATION_CREDENTIALS: /app/credential/techforb-finsuite-key.json  # Ruta absoluta
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}  # <-- IMPORTANTE
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+    ports:
+      - "8080:8080"
+    networks:
+      - app-network
+    volumes:
+      - ./credentials:/app/credential  # Monta las credenciales
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+networks:
+  app-network:
+    driver: bridge

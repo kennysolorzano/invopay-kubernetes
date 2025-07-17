@@ -1,0 +1,87 @@
+# frontend-deployment.yaml
+# Contiene el ConfigMap, Deployment y Service para tu aplicación de frontend (Angular).
+
+# ConfigMap para la configuración de Nginx
+# Esto soluciona el problema de la URL 'localhost' hardcodeada.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-nginx-conf
+data:
+  # Sobrescribimos el archivo de configuración por defecto de Nginx
+  default.conf: |
+    server {
+      listen 80;
+      server_name localhost;
+
+      # Sirve los archivos estáticos de Angular
+      root /usr/share/nginx/html;
+      index index.html index.htm;
+
+      # Regla para que todas las rutas de Angular funcionen al recargar la página
+      location / {
+        try_files $uri $uri/ /index.html;
+      }
+
+      # ¡LA MAGIA OCURRE AQUÍ!
+      # Cualquier petición que empiece con /api/ se redirige al backend.
+      location /api/ {
+        proxy_pass http://backend-service:8080/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      }
+    }
+---
+# Deployment para el Frontend
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  labels:
+    app: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend-container
+        # Nombre de la imagen confirmado con 'docker images'
+        image: kennysolo/invopay-frontend:1.0.0
+        # Usar la imagen local de Minikube
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        # Monta nuestra configuración personalizada de Nginx
+        volumeMounts:
+        - name: nginx-config-volume
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf # Importante: monta el archivo, no el directorio
+      # Define el volumen que apunta a nuestro ConfigMap
+      volumes:
+      - name: nginx-config-volume
+        configMap:
+          name: frontend-nginx-conf
+---
+# Service para el Frontend
+# Expone la aplicación fuera del clúster para que puedas acceder desde tu navegador.
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  # NodePort expone el servicio en un puerto estático en el nodo de Minikube
+  type: NodePort
+  selector:
+    # Redirige el tráfico a cualquier pod con la etiqueta 'app: frontend'
+    app: frontend
+  ports:
+  - protocol: TCP
+    port: 80       # Puerto interno del servicio
+    targetPort: 80 # Puerto del contenedor
