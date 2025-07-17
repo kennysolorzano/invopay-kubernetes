@@ -1,131 +1,160 @@
-# Despliegue de InvoPay en Kubernetes
+# 🚀 Despliegue de InvoPay en Kubernetes [![Frontend en Docker Hub](https://img.shields.io/badge/Docker%20Hub-invopay--frontend-blue?logo=docker)](https://hub.docker.com/r/kennysolo/invopay-frontend) [![Backend en Docker Hub](https://img.shields.io/badge/Docker%20Hub-invopay--backend-blue?logo=docker)](https://hub.docker.com/r/kennysolo/invopay-backend) [![Licencia MIT](https://img.shields.io/badge/Licencia-MIT-green)](LICENSE)
 
-Este repositorio contiene toda la configuración de Kubernetes necesaria para desplegar la aplicación InvoPay, una plataforma completa con un frontend en Angular y un backend en Spring Boot.
+Repositorio oficial con la configuración necesaria para desplegar **InvoPay**, una solución compuesta por un frontend en Angular y un backend en Spring Boot, sobre un entorno Kubernetes.
+
+---
+
+## 📑 Tabla de Contenidos
+- [📋 Prerrequisitos](#-prerrequisitos)
+- [🐳 Imágenes en Docker Hub](#-imágenes-en-docker-hub)
+- [🛠️ Proceso de Despliegue](#️-proceso-de-despliegue)
+  - [1️⃣ Clonar el repositorio](#1️⃣-clonar-el-repositorio)
+  - [2️⃣ Configurar los Secretos](#2️⃣-configurar-los-secretos)
+  - [3️⃣ Desplegar la aplicación](#3️⃣-desplegar-la-aplicación)
+  - [4️⃣ Verificar el despliegue](#4️⃣-verificar-el-despliegue)
+- [💻 Acceder a la aplicación](#-acceder-a-la-aplicación)
+  - [🔹 Opción A — Minikube (Desarrollo)](#-opción-a--minikube-desarrollo)
+  - [🔹 Opción B — Clúster en la Nube (Producción)](#-opción-b--clúster-en-la-nube-producción)
+- [🔄 Flujo de Trabajo para Desarrollo](#-flujo-de-trabajo-para-desarrollo)
+- [📄 Licencia](#-licencia)
 
 ---
 
 ## 📋 Prerrequisitos
 
-Antes de comenzar, asegúrate de tener las siguientes herramientas instaladas y configuradas en tu sistema:
+Asegúrate de contar con las siguientes herramientas instaladas:
 
-* **Git:** Para clonar el repositorio.
-* **Docker:** Para construir las imágenes de contenedor si realizas cambios en el código.
-* **kubectl:** La herramienta de línea de comandos para interactuar con tu clúster de Kubernetes.
-* **Minikube:** (Opcional) Para un despliegue de desarrollo en tu máquina local.
-
----
-
-## 🐳 Imágenes de Docker Hub
-
-Las imágenes de contenedor pre-construidas para este proyecto están disponibles públicamente en Docker Hub. Los manifiestos de Kubernetes ya están configurados para utilizarlas.
-
-* **Frontend:** [hub.docker.com/r/kennysolo/invopay-frontend](https://hub.docker.com/r/kennysolo/invopay-frontend)
-* **Backend:** [hub.docker.com/r/kennysolo/invopay-backend](https://hub.docker.com/r/kennysolo/invopay-backend)
+- **Git** — Para clonar el repositorio.
+- **Docker** — Para construir imágenes si modificas el código fuente.
+- **kubectl** — Para gestionar los recursos de Kubernetes.
+- **Minikube** *(Opcional)* — Para pruebas en entorno local.
 
 ---
 
-## 🚀 Proceso de Despliegue
+## 🐳 Imágenes en Docker Hub
 
-Sigue estos pasos para desplegar la aplicación en cualquier clúster de Kubernetes.
+Las siguientes imágenes públicas están listas para su uso en Kubernetes:
 
-### Paso 1: Clonar el Repositorio
+| Componente | Imagen |
+|------------|--------|
+| **Frontend** | [kennysolo/invopay-frontend](https://hub.docker.com/r/kennysolo/invopay-frontend) |
+| **Backend** | [kennysolo/invopay-backend](https://hub.docker.com/r/kennysolo/invopay-backend) |
 
-Primero, clona este repositorio en tu máquina local.
+---
+
+## 🛠️ Proceso de Despliegue
+
+### 1️⃣ Clonar el repositorio
 
 ```bash
-git clone [https://github.com/kennysolorzano/invopay-kubernetes.git](https://github.com/kennysolorzano/invopay-kubernetes.git)
+git clone https://github.com/kennysolorzano/invopay-kubernetes.git
 cd invopay-kubernetes
+```
 
-Paso 2: Configurar los Secretos
-La seguridad es lo primero. La información sensible como contraseñas y llaves de API se gestiona a través de un archivo de secretos que nunca se sube a Git.
+### 2️⃣ Configurar los Secretos
 
-a. Crear el archivo de secretos a partir de la plantilla:
-
-El repositorio incluye una plantilla secrets.template.yaml. Cópiala para crear tu propio archivo de secretos.
-
+1. Copia la plantilla:
+```bash
 cp k8s/secrets.template.yaml k8s/secrets.yaml
+```
 
-(Este archivo secrets.yaml ya está incluido en el .gitignore para tu seguridad).
+2. Codifica y reemplaza los valores en `k8s/secrets.yaml`:
 
-b. Rellenar k8s/secrets.yaml con tus valores:
+- Para texto plano:
+```bash
+echo -n 'tu-valor-secreto' | base64
+```
 
-Abre el archivo k8s/secrets.yaml con un editor de texto. Verás una lista de claves que debes rellenar con tus valores de producción, codificados en Base64.
+- Para un archivo (ej.: JSON de credenciales):
+```bash
+base64 /ruta/a/tu/archivo.json
+```
 
-¿Cómo codificar en Base64?
-
-Para texto: echo -n 'tu-valor-secreto' | base64
-
-Para archivos (como el JSON de Google): cat /ruta/a/tu/archivo.json | base64
-
-c. Aplicar los secretos al clúster:
-
-Una vez que hayas guardado tus cambios en k8s/secrets.yaml, aplícalos a tu clúster de Kubernetes.
-
+3. Aplica los secretos al clúster:
+```bash
 kubectl apply -f k8s/secrets.yaml
+```
 
-Paso 3: Desplegar la Aplicación
-Con los secretos ya en el clúster, despliega todos los componentes de la aplicación (Deployments, Services, etc.) con un solo comando.
+---
 
+### 3️⃣ Desplegar la aplicación
+
+```bash
 kubectl apply -f k8s/
+```
 
-Paso 4: Verificar el Despliegue
-Observa el estado de los pods hasta que ambos estén en estado Running y READY 1/1. Esto puede tardar unos minutos, especialmente la primera vez mientras se descargan las imágenes.
+---
 
+### 4️⃣ Verificar el despliegue
+
+Monitorea los pods hasta que estén en **Running**:
+```bash
 kubectl get pods -w
+```
 
-Una vez que ambos pods estén listos, presiona Ctrl+C para salir.
+Presiona `Ctrl + C` para salir cuando todo esté en ejecución.
 
-💻 Acceder a la Aplicación
-El método de acceso depende de tu entorno de Kubernetes.
+---
 
-Opción A: Entorno Local (Minikube)
-La forma más fiable de acceder a la aplicación en Minikube (especialmente en Windows con WSL) es creando un túnel de red directo. Esto soluciona problemas comunes de red y CORS.
+## 💻 Acceder a la aplicación
 
-Inicia el túnel:
-Este comando se quedará corriendo en tu terminal para mantener la conexión abierta.
+### 🔹 Opción A — Minikube (Desarrollo)
 
+1. Reenvía el puerto del frontend:
+```bash
 kubectl port-forward service/frontend-service 8081:80
+```
 
-Abre tu navegador:
-Ve a http://localhost:8081.
+2. Accede desde tu navegador:
+```
+http://localhost:8081
+```
 
-Opción B: Entorno de Producción (Google Cloud, AWS, Azure)
-En un clúster en la nube, la forma estándar de exponer una aplicación a internet es usando un servicio de tipo LoadBalancer.
+---
 
-Edita k8s/frontend-deployment.yaml:
-Cambia el tipo de servicio de NodePort a LoadBalancer.
+### 🔹 Opción B — Clúster en la Nube (Producción)
 
-# En k8s/frontend-deployment.yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: frontend-service
+1. Cambia el tipo de servicio a **LoadBalancer** en `k8s/frontend-deployment.yaml`:
+```yaml
 spec:
-  type: LoadBalancer # <-- CAMBIA ESTO
+  type: LoadBalancer
+```
 
-Aplica el cambio y obtén la IP externa:
-
+2. Aplica los cambios:
+```bash
 kubectl apply -f k8s/frontend-deployment.yaml
+```
+
+3. Consulta la IP pública:
+```bash
 kubectl get service frontend-service -w
+```
 
-Espera a que la columna EXTERNAL-IP muestre una dirección IP pública. Esto puede tardar unos minutos.
+Accede desde el navegador cuando la **EXTERNAL-IP** esté disponible.
 
-Abre tu navegador y ve a la http://<EXTERNAL-IP> que obtuviste.
+---
 
-🛠️ Flujo de Trabajo para Desarrollo
-Si realizas cambios en el código fuente, sigue estos pasos para actualizar tu entorno de desarrollo en Minikube.
+## 🔄 Flujo de Trabajo para Desarrollo
 
-Reconstruye la imagen modificada:
+Si realizas cambios en el código:
 
-# Ejemplo para el backend
+1. Reconstruye la imagen:
+```bash
 docker-compose build backend
+```
 
-Carga la nueva imagen a Minikube:
-
+2. Carga la nueva imagen en Minikube:
+```bash
 minikube image load invopay_backend:latest
+```
 
-Reinicia el deployment para que use la nueva imagen:
-
+3. Reinicia el deployment para aplicar los cambios:
+```bash
 kubectl rollout restart deployment backend-deployment
+```
 
-</markdown>
+---
+
+## 📄 Licencia
+
+Este proyecto está licenciado bajo la **Licencia MIT**, lo que significa que eres libre de usar, modificar y distribuir el código, siempre y cuando mantengas el aviso de derechos de autor y la licencia en las copias del proyecto. Puedes consultar el texto completo en el archivo [LICENSE](LICENSE).
