@@ -67,7 +67,7 @@ echo -n 'tu-valor-secreto' | base64
 
 - Para un archivo (ej.: JSON de credenciales):
 ```bash
-base64 /ruta/a/tu/archivo.json
+cat /ruta/a/tu/archivo.json | base64 | tr -d '\n'
 ```
 
 3. Aplica los secretos al clúster:
