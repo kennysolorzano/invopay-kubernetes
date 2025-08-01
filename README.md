@@ -1,160 +1,140 @@
-# 🚀 Despliegue de InvoPay en Kubernetes [![Frontend en Docker Hub](https://img.shields.io/badge/Docker%20Hub-invopay--frontend-blue?logo=docker)](https://hub.docker.com/r/kennysolo/invopay-frontend) [![Backend en Docker Hub](https://img.shields.io/badge/Docker%20Hub-invopay--backend-blue?logo=docker)](https://hub.docker.com/r/kennysolo/invopay-backend) [![Licencia MIT](https://img.shields.io/badge/Licencia-MIT-green)](LICENSE)
+# 🚀 Despliegue de InvoPay en Kubernetes
 
-Repositorio oficial con la configuración necesaria para desplegar **InvoPay**, una solución compuesta por un frontend en Angular y un backend en Spring Boot, sobre un entorno Kubernetes.
+[![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker Hub Frontend](https://img.shields.io/badge/Docker%20Hub-invopay--frontend-blue?logo=docker)](https://hub.docker.com/r/kennysolo/invopay-frontend)
+[![Docker Hub Backend](https://img.shields.io/badge/Docker%20Hub-invopay--backend-blue?logo=docker)](https://hub.docker.com/r/kennysolo/invopay-backend)
+
+Repositorio oficial con toda la configuración de Kubernetes necesaria para desplegar la aplicación **InvoPay**, una solución compuesta por un frontend en Angular y un backend en Spring Boot, sobre un entorno de producción en AWS EKS con una base de datos RDS.
 
 ---
 
 ## 📑 Tabla de Contenidos
 - [📋 Prerrequisitos](#-prerrequisitos)
+- [Arquitectura en AWS](#arquitectura-en-aws)
 - [🐳 Imágenes en Docker Hub](#-imágenes-en-docker-hub)
-- [🛠️ Proceso de Despliegue](#️-proceso-de-despliegue)
-  - [1️⃣ Clonar el repositorio](#1️⃣-clonar-el-repositorio)
-  - [2️⃣ Configurar los Secretos](#2️⃣-configurar-los-secretos)
-  - [3️⃣ Desplegar la aplicación](#3️⃣-desplegar-la-aplicación)
-  - [4️⃣ Verificar el despliegue](#4️⃣-verificar-el-despliegue)
-- [💻 Acceder a la aplicación](#-acceder-a-la-aplicación)
-  - [🔹 Opción A — Minikube (Desarrollo)](#-opción-a--minikube-desarrollo)
-  - [🔹 Opción B — Clúster en la Nube (Producción)](#-opción-b--clúster-en-la-nube-producción)
-- [🔄 Flujo de Trabajo para Desarrollo](#-flujo-de-trabajo-para-desarrollo)
+- [🛠️ Proceso de Despliegue en AWS EKS](#️-proceso-de-despliegue-en-aws-eks)
+  - [Fase 1: Configurar Herramientas Locales](#fase-1-configurar-herramientas-locales)
+  - [Fase 2: Crear el Clúster de Kubernetes (EKS)](#fase-2-crear-el-clúster-de-kubernetes-eks)
+  - [Fase 3: Configurar la Red (VPC Peering)](#fase-3-configurar-la-red-vpc-peering)
+  - [Fase 4: Desplegar la Aplicación](#fase-4-desplegar-la-aplicación)
+- [🗃️ Migración de Base de Datos (Opcional)](#️-migración-de-base-de-datos-opcional)
+- [💻 Acceder a la Aplicación](#-acceder-a-la-aplicación)
+- [🗑️ Limpieza de Recursos](#️-limpieza-de-recursos)
 - [📄 Licencia](#-licencia)
 
 ---
 
 ## 📋 Prerrequisitos
-
-Asegúrate de contar con las siguientes herramientas instaladas:
-
+- **Una cuenta de AWS** con permisos de administrador.
 - **Git** — Para clonar el repositorio.
-- **Docker** — Para construir imágenes si modificas el código fuente.
+- **AWS CLI** — Para interactuar con tu cuenta de AWS.
+- **eksctl** — Para crear y gestionar el clúster de EKS.
 - **kubectl** — Para gestionar los recursos de Kubernetes.
-- **Minikube** *(Opcional)* — Para pruebas en entorno local.
+
+---
+
+## Arquitectura en AWS
+Este despliegue crea la siguiente arquitectura:
+- Un **Clúster de EKS** que aloja los contenedores del frontend y el backend.
+- Una **Base de Datos RDS** para MySQL, desacoplada del clúster para mayor estabilidad.
+- Una conexión **VPC Peering** para comunicar de forma segura el clúster y la base de datos.
+- Un **Load Balancer** de AWS para exponer el frontend a internet.
 
 ---
 
 ## 🐳 Imágenes en Docker Hub
+Los manifiestos usan las siguientes imágenes públicas:
 
-Las siguientes imágenes públicas están listas para su uso en Kubernetes:
-
-| Componente | Imagen |
-|------------|--------|
-| **Frontend** | [kennysolo/invopay-frontend](https://hub.docker.com/r/kennysolo/invopay-frontend) |
-| **Backend** | [kennysolo/invopay-backend](https://hub.docker.com/r/kennysolo/invopay-backend) |
-
----
-
-## 🛠️ Proceso de Despliegue
-
-### 1️⃣ Clonar el repositorio
-
-```bash
-git clone https://github.com/kennysolorzano/invopay-kubernetes.git
-cd invopay-kubernetes
-```
-
-### 2️⃣ Configurar los Secretos
-
-1. Copia la plantilla:
-```bash
-cp k8s/secrets.template.yaml k8s/secrets.yaml
-```
-
-2. Codifica y reemplaza los valores en `k8s/secrets.yaml`:
-
-- Para texto plano:
-```bash
-echo -n 'tu-valor-secreto' | base64
-```
-
-- Para un archivo (ej.: JSON de credenciales):
-```bash
-cat /ruta/a/tu/archivo.json | base64 | tr -d '\n'
-```
-
-3. Aplica los secretos al clúster:
-```bash
-kubectl apply -f k8s/secrets.yaml
-```
+| Componente | Imagen en Docker Hub | Versión |
+|------------|----------------------|---------|
+| **Frontend** | `kennysolo/invopay-frontend` | `1.0.0` |
+| **Backend** | `kennysolo/invopay-backend` | `1.0.2` |
 
 ---
 
-### 3️⃣ Desplegar la aplicación
+## 🛠️ Proceso de Despliegue en AWS EKS
+
+### Fase 1: Configurar Herramientas Locales
+
+1. **Configura la AWS CLI:**
+    ```bash
+    aws configure
+    ```
+
+2. **Clona el repositorio:**
+    ```bash
+    git clone https://github.com/kennysolorzano/invopay-kubernetes.git
+    cd invopay-kubernetes
+    ```
+
+### Fase 2: Crear el Clúster de Kubernetes (EKS)
 
 ```bash
-kubectl apply -f k8s/
+eksctl create cluster \
+--name invopay-cluster \
+--region us-east-2 \
+--nodegroup-name standard-workers \
+--node-type t3.small \
+--nodes 1 \
+--managed
 ```
+
+### Fase 3: Configurar la Red (VPC Peering)
+
+1. Identifica las VPCs de EKS y RDS y sus rangos CIDR.
+2. Crea y acepta una conexión de VPC Peering desde la consola de AWS.
+3. Actualiza las rutas y grupos de seguridad para permitir tráfico en el puerto 3306.
+
+### Fase 4: Desplegar la Aplicación
+
+1. Crea un archivo `.env.prod` con las variables necesarias.
+2. Ejecuta:
+    ```bash
+    kubectl create secret generic backend-secrets --from-env-file=.env.prod
+    kubectl create secret generic google-credentials --from-file=./credentials/techforb-finsuite-key.json
+    kubectl apply -f k8s/backend-deployment.yaml
+    kubectl apply -f k8s/frontend-deployment.yaml
+    ```
 
 ---
 
-### 4️⃣ Verificar el despliegue
+## 🗃️ Migración de Base de Datos (Opcional)
 
-Monitorea los pods hasta que estén en **Running**:
+### Fase A: Crear el Esquema
+Despliega temporalmente el backend con `ddl-auto: update`.
+
+### Fase B: Importar los Datos
+
 ```bash
-kubectl get pods -w
-```
+mysqldump -u [usuario] -p'[contraseña]' --no-create-info --skip-triggers [nombre_db_local] > backup-data-only.sql
 
-Presiona `Ctrl + C` para salir cuando todo esté en ejecución.
-
----
-
-## 💻 Acceder a la aplicación
-
-### 🔹 Opción A — Minikube (Desarrollo)
-
-1. Reenvía el puerto del frontend:
-```bash
-kubectl port-forward service/frontend-service 8081:80
-```
-
-2. Accede desde tu navegador:
-```
-http://localhost:8081
+kubectl apply -f k8s/importer-pod.yaml
+kubectl cp backup-data-only.sql mysql-importer:/tmp/backup.sql
+kubectl exec -it mysql-importer -- /bin/bash
+mysql -h [endpoint-rds] -u [usuario-rds] -p'[contraseña-rds]' database-app < /tmp/backup.sql
+exit
+kubectl delete pod mysql-importer
 ```
 
 ---
 
-### 🔹 Opción B — Clúster en la Nube (Producción)
+## 💻 Acceder a la Aplicación
 
-1. Cambia el tipo de servicio a **LoadBalancer** en `k8s/frontend-deployment.yaml`:
-```yaml
-spec:
-  type: LoadBalancer
-```
-
-2. Aplica los cambios:
-```bash
-kubectl apply -f k8s/frontend-deployment.yaml
-```
-
-3. Consulta la IP pública:
 ```bash
 kubectl get service frontend-service -w
 ```
-
-Accede desde el navegador cuando la **EXTERNAL-IP** esté disponible.
+Accede a la `EXTERNAL-IP` en tu navegador.
 
 ---
 
-## 🔄 Flujo de Trabajo para Desarrollo
+## 🗑️ Limpieza de Recursos
 
-Si realizas cambios en el código:
-
-1. Reconstruye la imagen:
 ```bash
-docker-compose build backend
-```
-
-2. Carga la nueva imagen en Minikube:
-```bash
-minikube image load invopay_backend:latest
-```
-
-3. Reinicia el deployment para aplicar los cambios:
-```bash
-kubectl rollout restart deployment backend-deployment
+eksctl delete cluster --name invopay-cluster --region us-east-2
 ```
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto está licenciado bajo la **Licencia MIT**, lo que significa que eres libre de usar, modificar y distribuir el código, siempre y cuando mantengas el aviso de derechos de autor y la licencia en las copias del proyecto. Puedes consultar el texto completo en el archivo [LICENSE](LICENSE).
+Este proyecto está licenciado bajo la Licencia MIT. Eres libre de usar, modificar y distribuir el código. Para más detalles, consulta el archivo [LICENSE](./LICENSE).
