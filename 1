@@ -1,5 +1,5 @@
 # frontend-deployment.yaml
-# Contenido completo y verificado para el despliegue del frontend.
+# VERSIÓN CORREGIDA: Configuración de Nginx mejorada para manejar la subcarpeta /invopay
 
 apiVersion: v1
 kind: ConfigMap
@@ -10,9 +10,20 @@ data:
     server {
       listen 80;
       server_name localhost;
+
+      # La raíz donde se encuentran los archivos de Angular (index.html, etc.)
       root /usr/share/nginx/html;
-      
-      # Regla para redirigir peticiones a la API hacia el backend
+
+      # --- BLOQUE MEJORADO ---
+      # Esta sección maneja todas las peticiones que empiezan con /invopay/
+      location /invopay/ {
+        # Esta es la directiva clave para las Single Page Applications.
+        # Siempre devuelve el archivo index.html para que el router de Angular
+        # pueda manejar la ruta internamente.
+        try_files $uri $uri/ /index.html;
+      }
+
+      # Esta sección maneja las peticiones a la API y las redirige al backend.
       location /api/ {
         proxy_pass http://backend-service:8080/api/;
         proxy_set_header Host $host;
@@ -20,13 +31,13 @@ data:
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       }
 
-      # Regla para aplicaciones de una sola página (SPA) como Angular
-      # Siempre sirve el index.html para que el router de Angular maneje la ruta.
-      location / {
-        try_files $uri $uri/ /index.html;
+      # (Opcional) Redirige la raíz a la página de login de admin por defecto.
+      location = / {
+        return 301 /invopay/login-admin;
       }
     }
 ---
+# Deployment para el Frontend
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -45,9 +56,7 @@ spec:
     spec:
       containers:
       - name: frontend-container
-        # Apunta a tu imagen pública en Docker Hub
         image: kennysolo/invopay-frontend:1.0.0
-        # Asegura que siempre se descargue la imagen del registro
         imagePullPolicy: Always
         ports:
         - containerPort: 80
@@ -60,16 +69,18 @@ spec:
         configMap:
           name: frontend-nginx-conf
 ---
+# Service para el Frontend
 apiVersion: v1
 kind: Service
 metadata:
   name: frontend-service
 spec:
-  # LoadBalancer es para exponer el servicio a internet en un clúster de nube
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: frontend
   ports:
   - protocol: TCP
     port: 80
     targetPort: 80
+    nodePort: 8081
+

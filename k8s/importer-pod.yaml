@@ -1,0 +1,12 @@
+# k8s/importer-pod.yaml
+# Manifiesto para un pod persistente que se usará para importar la base de datos.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql-importer
+spec:
+  containers:
+  - name: mysql-client
+    image: mysql:8.0
+    # Mantenemos el pod corriendo indefinidamente con un comando de espera
+    command: ["/bin/bash", "-c", "sleep infinity"]

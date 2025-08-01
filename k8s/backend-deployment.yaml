@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: backend-container
-        image: kennysolo/invopay-backend:1.0.0
+        image: kennysolo/invopay-backend:1.0.1
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
