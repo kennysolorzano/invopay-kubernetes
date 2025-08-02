@@ -10,12 +10,11 @@ Repositorio oficial con toda la configuración de Kubernetes necesaria para desp
 
 ## 📑 Tabla de Contenidos
 - [📋 Prerrequisitos](#-prerrequisitos)
-- [Arquitectura en AWS](#arquitectura-en-aws)
-- [🐳 Imágenes en Docker Hub](#-imágenes-en-docker-hub)
-- [🛠️ Proceso de Despliegue en AWS EKS](#️-proceso-de-despliegue-en-aws-eks)
-  - [Fase 1: Configurar Herramientas Locales](#fase-1-configurar-herramientas-locales)
-  - [Fase 2: Crear el Clúster de Kubernetes (EKS)](#fase-2-crear-el-clúster-de-kubernetes-eks)
-  - [Fase 3: Configurar la Red (VPC Peering)](#fase-3-configurar-la-red-vpc-peering)
+- [📝 Resumen del Proceso: De Local a la Nube](#️-resumen-del-proceso-de-local-a-la-nube)
+- [🛠️ Proceso de Despliegue Detallado](#️-proceso-de-despliegue-detallado)
+  - [Fase 1: Configurar el Entorno Local](#fase-1-configurar-el-entorno-local)
+  - [Fase 2: Desplegar la Infraestructura en AWS](#fase-2-desplegar-la-infraestructura-en-aws)
+  - [Fase 3: Configurar la Conectividad de Red](#fase-3-configurar-la-conectividad-de-red)
   - [Fase 4: Desplegar la Aplicación](#fase-4-desplegar-la-aplicación)
 - [🗃️ Migración de Base de Datos (Opcional)](#️-migración-de-base-de-datos-opcional)
 - [💻 Acceder a la Aplicación](#-acceder-a-la-aplicación)
@@ -25,110 +24,106 @@ Repositorio oficial con toda la configuración de Kubernetes necesaria para desp
 ---
 
 ## 📋 Prerrequisitos
-- **Una cuenta de AWS** con permisos de administrador.
+
+### 1. Herramientas de Software
 - **Git** — Para clonar el repositorio.
 - **AWS CLI** — Para interactuar con tu cuenta de AWS.
-- **eksctl** — Para crear y gestionar el clúster de EKS.
+- **eksctl** — La herramienta oficial para crear y gestionar clústeres de EKS.
 - **kubectl** — Para gestionar los recursos de Kubernetes.
 
----
+### 2. Permisos de AWS (IAM)
+Para ejecutar este despliegue, necesitas un usuario de IAM (no el usuario root de la cuenta) con la política `AdministratorAccess`.
 
-## Arquitectura en AWS
-Este despliegue crea la siguiente arquitectura:
-- Un **Clúster de EKS** que aloja los contenedores del frontend y el backend.
-- Una **Base de Datos RDS** para MySQL, desacoplada del clúster para mayor estabilidad.
-- Una conexión **VPC Peering** para comunicar de forma segura el clúster y la base de datos.
-- Un **Load Balancer** de AWS para exponer el frontend a internet.
+**¿Por qué se necesitan permisos de administrador?**
+La herramienta `eksctl` crea una infraestructura de red compleja en tu nombre (VPCs, Subnets, Gateways, Roles de IAM, Grupos de Seguridad, Instancias EC2 para los nodos, etc.). Otorgar `AdministratorAccess` al usuario de la CLI asegura que `eksctl` tenga todos los permisos necesarios para completar estas tareas sin fallar. Para un entorno de producción más estricto, se pueden definir políticas más granulares.
 
 ---
 
-## 🐳 Imágenes en Docker Hub
-Los manifiestos usan las siguientes imágenes públicas:
+## 📝 Resumen del Proceso: De Local a la Nube
 
-| Componente | Imagen en Docker Hub | Versión |
-|------------|----------------------|---------|
-| **Frontend** | `kennysolo/invopay-frontend` | `1.0.0` |
-| **Backend** | `kennysolo/invopay-backend` | `1.0.2` |
+El proceso de migración de un entorno local a uno de producción en la nube como AWS EKS implica varios pasos clave que esta guía detalla:
+
+1. **Publicar las Imágenes**  
+   Sube las imágenes construidas localmente a Docker Hub para que puedan ser accedidas desde AWS.
+
+2. **Adaptar los Manifiestos**  
+   Asegúrate de que los archivos `.yaml` de Kubernetes apunten a las URLs públicas de Docker Hub.
+
+3. **Crear la Infraestructura**  
+   Usa `eksctl` para crear un clúster EKS gestionado.
+
+4. **Configurar la Red**  
+   Conecta el clúster con la base de datos RDS mediante VPC Peering.
+
+5. **Gestionar Secretos de Producción**  
+   Usa archivos `.env` para inyectar variables de entorno en los pods de Kubernetes.
+
+6. **Exponer la Aplicación**  
+   Usa el tipo de servicio `LoadBalancer` para obtener una IP pública desde AWS.
 
 ---
 
-## 🛠️ Proceso de Despliegue en AWS EKS
+## 🛠️ Proceso de Despliegue Detallado
 
-### Fase 1: Configurar Herramientas Locales
-
-1. **Configura la AWS CLI:**
-    ```bash
-    aws configure
-    ```
-
-2. **Clona el repositorio:**
-    ```bash
-    git clone https://github.com/kennysolorzano/invopay-kubernetes.git
-    cd invopay-kubernetes
-    ```
-
-### Fase 2: Crear el Clúster de Kubernetes (EKS)
-
+### Fase 1: Configurar el Entorno Local
 ```bash
-eksctl create cluster \
---name invopay-cluster \
---region us-east-2 \
---nodegroup-name standard-workers \
---node-type t3.small \
---nodes 1 \
---managed
+# Configura la AWS CLI
+aws configure
+# Clona este repositorio
+git clone https://github.com/kennysolorzano/invopay-kubernetes.git
+cd invopay-kubernetes
 ```
 
-### Fase 3: Configurar la Red (VPC Peering)
+### Fase 2: Desplegar la Infraestructura en AWS
+```bash
+eksctl create cluster   --name invopay-cluster   --region us-east-2   --nodegroup-name standard-workers   --node-type t3.small   --nodes 1   --managed
+```
 
-1. Identifica las VPCs de EKS y RDS y sus rangos CIDR.
-2. Crea y acepta una conexión de VPC Peering desde la consola de AWS.
-3. Actualiza las rutas y grupos de seguridad para permitir tráfico en el puerto 3306.
+```bash
+# Verifica la conexión al clúster
+kubectl get nodes
+```
+
+### Fase 3: Configurar la Conectividad de Red
+
+1. Identifica las VPCs (EKS y RDS) y sus CIDRs.
+2. Crea una conexión de VPC Peering.
+3. Actualiza las tablas de rutas de ambas VPCs.
+4. Modifica el grupo de seguridad de RDS para aceptar conexiones desde el CIDR del clúster.
 
 ### Fase 4: Desplegar la Aplicación
+```bash
+# Crea archivo de entorno
+touch .env.prod
+# Agrega DB_URL, DB_USER, DB_PASSWORD
 
-1. Crea un archivo `.env.prod` con las variables necesarias.
-2. Ejecuta:
-    ```bash
-    kubectl create secret generic backend-secrets --from-env-file=.env.prod
-    kubectl create secret generic google-credentials --from-file=./credentials/techforb-finsuite-key.json
-    kubectl apply -f k8s/backend-deployment.yaml
-    kubectl apply -f k8s/frontend-deployment.yaml
-    ```
+# Crea los secretos
+kubectl create secret generic backend-secrets --from-env-file=.env.prod
+kubectl create secret generic google-credentials --from-file=./credentials/techforb-finsuite-key.json
+
+# Despliega los manifiestos
+kubectl apply -f k8s/backend-deployment.yaml
+kubectl apply -f k8s/frontend-deployment.yaml
+```
 
 ---
 
 ## 🗃️ Migración de Base de Datos (Opcional)
-
-### Fase A: Crear el Esquema
-Despliega temporalmente el backend con `ddl-auto: update`.
-
-### Fase B: Importar los Datos
-
-```bash
-mysqldump -u [usuario] -p'[contraseña]' --no-create-info --skip-triggers [nombre_db_local] > backup-data-only.sql
-
-kubectl apply -f k8s/importer-pod.yaml
-kubectl cp backup-data-only.sql mysql-importer:/tmp/backup.sql
-kubectl exec -it mysql-importer -- /bin/bash
-mysql -h [endpoint-rds] -u [usuario-rds] -p'[contraseña-rds]' database-app < /tmp/backup.sql
-exit
-kubectl delete pod mysql-importer
-```
+Puedes usar herramientas como DBeaver o `mysqldump` para migrar tus datos de una base local a la base de datos RDS en AWS.
 
 ---
 
 ## 💻 Acceder a la Aplicación
-
 ```bash
+# Espera a que el servicio publique la IP externa
 kubectl get service frontend-service -w
 ```
-Accede a la `EXTERNAL-IP` en tu navegador.
+
+Abre la dirección que aparece en `EXTERNAL-IP` en tu navegador.
 
 ---
 
 ## 🗑️ Limpieza de Recursos
-
 ```bash
 eksctl delete cluster --name invopay-cluster --region us-east-2
 ```
@@ -137,4 +132,8 @@ eksctl delete cluster --name invopay-cluster --region us-east-2
 
 ## 📄 Licencia
 
-Este proyecto está licenciado bajo la Licencia MIT. Eres libre de usar, modificar y distribuir el código. Para más detalles, consulta el archivo [LICENSE](./LICENSE).
+Este proyecto está licenciado bajo los términos de la Licencia MIT.
+
+Eso significa que puedes utilizar, copiar, modificar, fusionar, publicar, distribuir, sublicenciar y/o vender copias del software, siempre y cuando incluyas el aviso de copyright original.
+
+Consulta el archivo [LICENSE](./LICENSE) para más información.
